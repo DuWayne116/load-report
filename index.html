@@ -21,7 +21,7 @@ button.sec{background:#dfe7f2;color:#123}button.del{background:#c0392b}button.bi
 .yn{display:flex;gap:6px}.yn button{flex:1;background:#dfe7f2;color:#123}.yn button.on{background:#2e7d32;color:#fff}.yn button.on.n{background:#c0392b}
 .photos{display:grid;grid-template-columns:1fr 1fr;gap:8px}.ph{position:relative}.ph img{width:100%;border-radius:8px;aspect-ratio:3/4;object-fit:cover}
 .ph input{font-size:14px;min-height:38px;padding:6px;margin-top:4px}.ph .x{position:absolute;top:4px;right:4px;min-height:34px;padding:4px 10px}
-canvas#sig{width:100%;height:170px;border:1px dashed #678;border-radius:10px;background:#fff;touch-action:none}
+canvas.pad,canvas#sig{width:100%;height:170px;border:1px dashed #678;border-radius:10px;background:#fff;touch-action:none}
 .truck{border:2px solid #4F81BD;border-radius:10px;padding:8px;margin-bottom:10px}
 .list .item{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #ddd;padding:8px 0;gap:6px}
 .muted{color:#667;font-size:13px}#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;display:none;z-index:9}
@@ -34,8 +34,9 @@ button.mini{min-height:34px;padding:4px 8px;font-size:13px;margin:1px}.kp{displa
 <nav><button onclick="newReport()">＋ New</button><button class="sec" onclick="showList()">📂 Saved reports</button><button class="sec" onclick="showLog()">📊 Load log</button><button class="sec" onclick="dupReport()">⧉ Duplicate</button></nav>
 <main id="form">
 <section>
- <label>Survey report:</label><input data-f="reportNo" placeholder="e.g. BOL1506205">
- <label>Customer <span class="muted">(for Load log)</span></label><input data-f="customer" placeholder="e.g. Bollore">
+ <label>Customer</label><div class="row"><select id="custSel" onchange="pickCust()"></select><button class="btn sec" onclick="toggleCustEd()">✎ List</button></div>
+ <div id="custEd" style="display:none;border:2px solid #4F81BD;border-radius:10px;padding:8px;margin-top:8px"><b>Customers</b> <span class="muted">(name · REP NO prefix · next number · email)</span><div id="custRows"></div><button class="sec" onclick="addCust()">＋ Add customer</button> <button onclick="toggleCustEd()">Done</button></div>
+ <label>Survey report:</label><div class="row"><input data-f="reportNo" placeholder="e.g. BOL1506205"><button class="btn" onclick="assignRep(true)">Auto</button></div>
  <label>Name of Goods or Item No:</label><input data-f="goods">
  <label>Inspection date:</label><div class="row"><input data-f="date" type="date"><button class="btn" onclick="setNow('date','d')">Today</button></div>
  <label>Inspector name:</label><input data-f="inspector">
@@ -53,18 +54,27 @@ button.mini{min-height:34px;padding:4px 8px;font-size:13px;margin:1px}.kp{displa
  <label>Mode of transport</label><textarea data-f="mode"></textarea>
  <label>Quantity Of trucks/Containers</label><textarea data-f="qtyTrucks"></textarea>
 </section>
+<section><h2>Weights &amp; dimensions</h2><div id="items"></div><button class="big sec" onclick="addItem()">＋ Add item / crate</button>
+ <div class="row"><div><label>Gross weight (kg)</label><input data-f="gross" inputmode="decimal"></div><div><label>Totals</label><div id="itemTot" class="muted" style="padding:8px 0"></div></div></div></section>
 <section><h2>ARRIVAL</h2><div class="row"><input data-f="arrival" type="datetime-local"><button class="btn" onclick="setNow('arrival','dt')">Now</button></div></section>
 <section><div id="trucks"></div><button class="big sec" onclick="addTruck()">＋ Add truck/container</button></section>
 <section><h2>1 ADDRESS</h2><input data-f="addr1" placeholder="Line 1"><input data-f="addr2" placeholder="Line 2" style="margin-top:6px"><input data-f="addr3" placeholder="Line 3" style="margin-top:6px"></section>
 <section><h2>Loading procedure</h2><div id="steps"></div><button class="big sec" onclick="addStep()">＋ Add step</button></section>
+<section><h2>Lashing / securing checklist</h2><div id="lash"></div>
+ <div class="row"><div><label>Straps / chains used (no.)</label><input data-f="straps" inputmode="numeric"></div><div><label>Lashing equipment</label><input data-f="lashEq" placeholder="e.g. 5t ratchet straps"></div></div></section>
+<section><h2>Damages</h2><label>Damages found?</label><div class="yn" id="dmgYN"></div><div id="dmgList"></div>
+ <div class="row" style="margin-top:8px"><button class="sec" onclick="addDmg()">＋ Add damage</button><label class="btn" style="text-align:center;margin:0">📷 Damage photo<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhotosTo(this,'dmgPhotos')"></label></div>
+ <div class="photos" id="dmgPhotos" style="margin-top:8px"></div></section>
 <section><h2>Final Images.</h2>
- <div class="row"><label class="btn" style="text-align:center;margin:0">📷 Camera<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhotos(this)"></label>
- <label class="btn" style="text-align:center;margin:0">🖼 Gallery<input id="gal" type="file" accept="image/*" multiple hidden onchange="addPhotos(this)"></label></div>
+ <div class="row"><div><label>Stage for new photos</label><select id="stageSel"><option>Before</option><option selected>During</option><option>After</option></select></div>
+ <div><label><input type="checkbox" id="stampChk" checked style="width:auto;min-height:0"> Stamp time &amp; GPS</label><div class="muted" id="gpsStat">GPS: not yet</div></div></div>
+ <div class="row"><label class="btn" style="text-align:center;margin:0">📷 Camera<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addPhotosTo(this,'photos')"></label>
+ <label class="btn" style="text-align:center;margin:0">🖼 Gallery<input id="gal" type="file" accept="image/*" multiple hidden onchange="addPhotosTo(this,'photos')"></label></div>
  <div class="photos" id="photos" style="margin-top:8px"></div></section>
 <section><h2>REMARKS</h2><textarea data-f="rem1" rows="3"></textarea><textarea data-f="rem2" rows="6" style="margin-top:6px"></textarea>
  <button class="sec" style="margin-top:6px" onclick="resetRemarks()">Restore standard remarks</button></section>
 <section><h2>Kind Regards</h2><label>Name</label><input data-f="name"><label>Phone</label><input data-f="phone" type="tel">
- <label>Inspector signature</label><canvas id="sig"></canvas><button class="sec" onclick="clearSig()">Clear signature</button></section>
+ <label>Inspector signature</label><canvas id="sig" class="pad"></canvas><button class="sec" onclick="PADS.sig.clear()">Clear signature</button></section>
 <section id="extraSec"><h2>Extra photos (sent separately – not in report)</h2>
  <label>Category for new photos</label><div class="row"><select id="newCat"></select><button class="btn sec" onclick="addCat()">＋ Category</button></div>
  <div class="row" style="margin-top:8px"><label class="btn" style="text-align:center;margin:0">📷 Camera<input type="file" accept="image/*" capture="environment" multiple hidden onchange="addExtra(this)"></label>
@@ -72,8 +82,12 @@ button.mini{min-height:34px;padding:4px 8px;font-size:13px;margin:1px}.kp{displa
  <div id="extra"></div>
  <div class="out" style="margin-top:8px"><button onclick="shareExtra()">📤 Share extra photos</button><button class="sec" onclick="zipExtra()">⬇ Download as ZIP</button></div>
  <p class="muted" id="exCount"></p></section>
+<section><h2>Driver sign-off</h2><label>Driver name</label><input data-f="drvName" placeholder="defaults to truck 1 driver">
+ <label>Driver signature</label><canvas id="dsig" class="pad"></canvas><button class="sec" onclick="PADS.dsig.clear()">Clear signature</button></section>
 <section><label>REP NO: (footer)</label><input data-f="repNo" placeholder="defaults to Survey report no."></section>
 <section><h2>Finished report</h2><button id="doneBtn" class="big sec" onclick="markDone()">Mark completed</button><div class="out">
+ <label style="grid-column:1/3">Email to</label><select id="mailTo" style="grid-column:1/3"><option value="k">Kayla (kayla@ips-packaging.co.za)</option><option value="c">Customer email</option><option value="b">Kayla + customer</option></select>
+ <button style="grid-column:1/3;font-size:18px" onclick="emailReport()">✉ Email report (PDF + Word)</button>
  <button onclick="out('pdf','share')">📤 Share PDF</button><button class="sec" onclick="out('pdf','dl')">⬇ Download PDF</button>
  <button onclick="out('docx','share')">📤 Share Word</button><button class="sec" onclick="out('docx','dl')">⬇ Download Word</button></div>
  <p class="muted" id="saved">Draft autosaves on this phone.</p></section>
@@ -522,21 +536,21 @@ function toast(m){const t=$('#toast');t.textContent=m;t.style.display='block';cl
 let dbp=new Promise((res,rej)=>{const o=indexedDB.open('ipsSurvey',1);o.onupgradeneeded=()=>o.result.createObjectStore('r',{keyPath:'id'});o.onsuccess=()=>res(o.result);o.onerror=()=>rej(o.error)});
 async function tx(mode,fn){const db=await dbp;return new Promise((res,rej)=>{const t=db.transaction('r',mode);const q=fn(t.objectStore('r'));t.oncomplete=()=>res(q&&q.result);t.onerror=()=>rej(t.error)})}
 const dbPut=r=>tx('readwrite',s=>s.put(r)),dbGet=id=>tx('readonly',s=>s.get(id)),dbAll=()=>tx('readonly',s=>s.getAll()),dbDel=id=>tx('readwrite',s=>s.delete(id));
-function blank(){return{id:'r'+Date.now(),updated:Date.now(),f:{rem1:REM1,rem2:REM2,date:today()},trucks:[{}],steps:[''],photos:[],sig:'',extra:[],cats:['Items','Damages','Other']}}
+function blank(){return{id:'r'+Date.now(),updated:Date.now(),f:{rem1:REM1,rem2:REM2,date:today()},trucks:[{}],steps:[''],photos:[],sig:'',extra:[],cats:['Items','Damages','Other'],items:[],lash:{},damages:[],dmgPhotos:[],dsig:''}}
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
 let saveT;function save(){R.updated=Date.now();clearTimeout(saveT);saveT=setTimeout(async()=>{try{await dbPut(R);localStorage.setItem('ipsCur',R.id);$('#saved').textContent='Draft saved '+new Date().toLocaleTimeString()}catch(e){toast('Save failed: '+e.message)}},400)}
 // ---- render form
 function render(){
  document.querySelectorAll('[data-f]').forEach(el=>{el.value=R.f[el.dataset.f]||''});
- R.extra=R.extra||[];R.cats=R.cats||['Items','Damages','Other'];renderTrucks();renderSteps();renderPhotos();renderExtra();loadSig();updStatus();
+ for(const[k,d]of[['extra',[]],['items',[]],['lash',{}],['damages',[]],['dmgPhotos',[]]])if(!R[k])R[k]=d;R.extra=R.extra||[];R.cats=R.cats||['Items','Damages','Other'];renderTrucks();renderSteps();renderPhotos();renderExtra();renderItems();renderLash();renderDmg();renderCust();loadSig();updStatus();
 }
-document.addEventListener('input',e=>{const el=e.target;if(el.dataset.f){R.f[el.dataset.f]=el.value;save()}else if(el.dataset.t){const[i,k]=el.dataset.t.split(':');R.trucks[i][k]=el.value;save()}else if(el.dataset.s!=null){R.steps[el.dataset.s]=el.value;save()}else if(el.dataset.ec!=null){R.extra[el.dataset.ec].cap=el.value;save()}else if(el.dataset.c!=null){R.photos[el.dataset.c].cap=el.value;save()}});
+document.addEventListener('input',e=>{const el=e.target;if(el.dataset.f){R.f[el.dataset.f]=el.value;save()}else if(el.dataset.t){const[i,k]=el.dataset.t.split(':');R.trucks[i][k]=el.value;save()}else if(el.dataset.s!=null){R.steps[el.dataset.s]=el.value;save()}else if(el.dataset.it){const[i,k]=el.dataset.it.split(':');R.items[i][k]=el.value;itemTot();save()}else if(el.dataset.lc){R.lash[el.dataset.lc+'C']=el.value;save()}else if(el.dataset.dm){const[i,k]=el.dataset.dm.split(':');R.damages[i][k]=el.value;save()}else if(el.dataset.pc){const[l,i]=el.dataset.pc.split(':');R[l][i].cap=el.value;save()}else if(el.dataset.ec!=null){R.extra[el.dataset.ec].cap=el.value;save()}else if(el.dataset.c!=null){R.photos[el.dataset.c].cap=el.value;save()}});
 function setNow(k,m){const d=new Date(),p=n=>String(n).padStart(2,'0');R.f[k]=m=='d'?today():today()+'T'+p(d.getHours())+':'+p(d.getMinutes());render();save()}
 function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function renderTrucks(){$('#trucks').innerHTML=R.trucks.map((t,i)=>`<div class="truck"><div class="th">TRUCK DETAILS${R.trucks.length>1?' – '+(i+1):''}</div>
  ${TF.map(([k,l])=>`<label>${l}</label><input data-t="${i}:${k}" value="${esc(t[k])}" ${k=='toa'?'placeholder="time of arrival"':''}>`).join('')}
- <label>Container / seal no. <span class="muted">(log)</span></label><input data-t="${i}:cont" value="${esc(t.cont)}">
- <label>Loading start / finish <span class="muted">(log)</span></label><div class="row"><input type="datetime-local" data-t="${i}:start" value="${esc(t.start)}"><button class="btn" onclick="tNow(${i},'start')">Now</button></div><div class="row" style="margin-top:6px"><input type="datetime-local" data-t="${i}:finish" value="${esc(t.finish)}"><button class="btn" onclick="tNow(${i},'finish')">Now</button></div>
+ <div class="row"><div><label>Container no.</label><input data-t="${i}:cont" value="${esc(t.cont)}"></div><div><label>Seal no.</label><input data-t="${i}:seal" value="${esc(t.seal)}"></div></div>
+ <label>Loading start / finish</label><div class="row"><input type="datetime-local" data-t="${i}:start" value="${esc(t.start)}"><button class="btn" onclick="tNow(${i},'start')">Now</button></div><div class="row" style="margin-top:6px"><input type="datetime-local" data-t="${i}:finish" value="${esc(t.finish)}"><button class="btn" onclick="tNow(${i},'finish')">Now</button></div>
  <div class="th" style="margin-top:12px">Truck Condition</div>
  ${TC.map(([k,l])=>`<label>${l}</label><div class="yn"><button class="${t[k]=='Y'?'on':''}" onclick="yn(${i},'${k}','Y')">Y</button><button class="n ${t[k]=='N'?'on':''}" onclick="yn(${i},'${k}','N')">N</button></div><input style="margin-top:6px" placeholder="Comments" data-t="${i}:${k}C" value="${esc(t[k+'C'])}">`).join('')}
  ${R.trucks.length>1?`<button class="del" style="margin-top:8px" onclick="delTruck(${i})">Remove truck ${i+1}</button>`:''}</div>`).join('')}
@@ -548,31 +562,85 @@ function renderSteps(){$('#steps').innerHTML=R.steps.map((s,i)=>`<div class="row
 function addStep(){R.steps.push('');renderSteps();save();const t=document.querySelectorAll('#steps textarea');t[t.length-1].focus()}
 function delStep(i){R.steps.splice(i,1);renderSteps();save()}
 function resetRemarks(){R.f.rem1=REM1;R.f.rem2=REM2;render();save()}
-// ---- photos (client-side compression)
-function compress(file,max=1400,q=0.72){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{let w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res({data:c.toDataURL('image/jpeg',q),w,h,cap:''})};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
-async function addPhotos(inp){for(const f of inp.files){try{R.photos.push(await compress(f))}catch(e){toast('Could not read image')}}inp.value='';renderPhotos();save()}
-function renderPhotos(){$('#photos').innerHTML=R.photos.map((p,i)=>`<div class="ph"><img src="${p.data}"><button class="x del" onclick="delPhoto(${i})">✕</button><input placeholder="Caption (optional)" data-c="${i}" value="${esc(p.cap)}"></div>`).join('')}
+// ---- photos (client-side compression + time/GPS stamp)
+let GPS=null;
+function getGPS(){return new Promise(res=>{if(!navigator.geolocation)return res(null);if(GPS&&Date.now()-GPS.t<120000)return res(GPS);
+ navigator.geolocation.getCurrentPosition(p=>{GPS={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,t:Date.now()};gpsStat();res(GPS)},e=>{gpsStat(e.message);res(null)},{enableHighAccuracy:true,timeout:8000,maximumAge:60000})})}
+function gpsStat(err){const el=$('#gpsStat');if(el)el.textContent=GPS?`GPS: ${GPS.lat.toFixed(5)}, ${GPS.lon.toFixed(5)} (±${Math.round(GPS.acc)} m)`:'GPS: '+(err||'unavailable')}
+function fmtTS(ms){const d=new Date(ms),p=n=>String(n).padStart(2,'0');return `${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`}
+function compress(file,max=1400,q=0.72,stamp=null){return new Promise((res,rej)=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{let w=im.width,h=im.height,s=Math.min(1,max/Math.max(w,h));w=Math.round(w*s);h=Math.round(h*s);const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');x.drawImage(im,0,0,w,h);
+ if(stamp&&stamp.length){const fs=Math.max(14,Math.round(w/38));x.font=`bold ${fs}px sans-serif`;const lh=fs*1.3,bh=lh*stamp.length+fs*.6;x.fillStyle='rgba(0,0,0,.55)';x.fillRect(0,h-bh,w,bh);x.fillStyle='#fff';x.textBaseline='top';stamp.forEach((t,i)=>x.fillText(t,fs*.5,h-bh+fs*.3+i*lh))}
+ res({data:c.toDataURL('image/jpeg',q),w,h,cap:''})};im.onerror=rej;im.src=fr.result};fr.onerror=rej;fr.readAsDataURL(file)})}
+async function stampFor(file,label){if(!$('#stampChk').checked)return{lines:null};const g=await getGPS();const ts=file.lastModified&&Math.abs(Date.now()-file.lastModified)<864e5*365?file.lastModified:Date.now();
+ const gps=g?`${g.lat.toFixed(5)}, ${g.lon.toFixed(5)} (±${Math.round(g.acc)} m)`:'GPS unavailable';return{ts,gps:g?gps:'',lines:[`IPS ${V().repNo||''} · ${label}`.trim(),`${fmtTS(ts)} · ${gps}`]}}
+async function addPhotosTo(inp,list){const stage=list=='photos'?$('#stageSel').value:'Damage';for(const f of inp.files){try{const st=await stampFor(f,stage);const p=await compress(f,1400,.72,st.lines);p.stage=stage;p.ts=st.ts||Date.now();p.gps=st.gps||'';R[list].push(p)}catch(e){toast('Could not read image')}}inp.value='';list=='photos'?renderPhotos():renderDmg();save()}
+async function addPhotos(inp){return addPhotosTo(inp,'photos')}
+const STAGES=['Before','During','After'];
+function renderPhotos(){$('#photos').innerHTML=R.photos.map((p,i)=>`<div class="ph"><img src="${p.data}"><button class="x del" onclick="delPhoto(${i})">✕</button><select onchange="R.photos[${i}].stage=this.value;save()">${STAGES.map(o=>`<option ${o==(p.stage||'During')?'selected':''}>${o}</option>`).join('')}</select><input placeholder="Caption (optional)" data-c="${i}" value="${esc(p.cap)}"></div>`).join('')}
 function delPhoto(i){R.photos.splice(i,1);renderPhotos();save()}
-// ---- signature
-const sig=$('#sig');let sctx,drawing=false,dirty=false;
-function sizeSig(){const r=sig.getBoundingClientRect();sig.width=r.width*2;sig.height=r.height*2;sctx=sig.getContext('2d');sctx.lineWidth=4;sctx.lineCap='round';sctx.lineJoin='round';sctx.strokeStyle='#0a1a6b'}
-function pos(e){const r=sig.getBoundingClientRect();return[(e.clientX-r.left)*2,(e.clientY-r.top)*2]}
-sig.addEventListener('pointerdown',e=>{drawing=true;sig.setPointerCapture(e.pointerId);sctx.beginPath();sctx.moveTo(...pos(e))});
-sig.addEventListener('pointermove',e=>{if(!drawing)return;sctx.lineTo(...pos(e));sctx.stroke();dirty=true});
-['pointerup','pointercancel'].forEach(ev=>sig.addEventListener(ev,()=>{if(drawing&&dirty){R.sig=sig.toDataURL('image/png');save()}drawing=false}));
-function clearSig(){sctx.clearRect(0,0,sig.width,sig.height);R.sig='';dirty=false;save()}
-function loadSig(){sizeSig();if(R.sig){const im=new Image();im.onload=()=>sctx.drawImage(im,0,0,sig.width,sig.height);im.src=R.sig}}
+// ---- weights & dimensions
+function renderItems(){$('#items').innerHTML=R.items.map((it,i)=>`<div class="truck"><label>Item / crate ${i+1}</label><input data-it="${i}:desc" value="${esc(it.desc)}" placeholder="Description">
+ <div class="row" style="margin-top:6px"><div><label>Qty</label><input data-it="${i}:qty" inputmode="numeric" value="${esc(it.qty)}"></div><div><label>Kg each</label><input data-it="${i}:kg" inputmode="decimal" value="${esc(it.kg)}"></div></div>
+ <div class="row"><div><label>L cm</label><input data-it="${i}:l" inputmode="decimal" value="${esc(it.l)}"></div><div><label>W cm</label><input data-it="${i}:w" inputmode="decimal" value="${esc(it.w)}"></div><div><label>H cm</label><input data-it="${i}:h" inputmode="decimal" value="${esc(it.h)}"></div></div>
+ <button class="del" style="margin-top:6px" onclick="R.items.splice(${i},1);renderItems();save()">Remove</button></div>`).join('');itemTot()}
+function addItem(){R.items.push({qty:'1'});renderItems();save()}
+const num=v=>parseFloat(String(v||'').replace(',','.'))||0;
+function totals(){let q=0,kg=0,m3=0;for(const it of R.items){const n=num(it.qty)||0;q+=n;kg+=n*num(it.kg);m3+=n*num(it.l)*num(it.w)*num(it.h)/1e6}return{q,kg,m3}}
+function itemTot(){const t=totals();const el=$('#itemTot');if(el)el.textContent=R.items.length?`${t.q} pcs · ${t.kg.toFixed(1)} kg · ${t.m3.toFixed(2)} m³`:'–'}
+// ---- lashing checklist
+const LASH=['Cargo evenly distributed / within axle limits','Straps / chains in good condition & rated for load','Edge / corner protectors used','Blocking, chocks / dunnage in place','Anti-slip mats used','Secured against forward, rearward & sideways movement','Tarpaulin / cover secured','Container doors closed & sealed','Re-tension check done before departure'];
+function renderLash(){$('#lash').innerHTML=LASH.map((l,i)=>`<label>${l}</label><div class="yn">${['Y','N','N/A'].map(v=>`<button class="${v=='N'?'n ':''}${R.lash[i]==v?'on':''}" onclick="R.lash[${i}]=R.lash[${i}]=='${v}'?'':'${v}';renderLash();save()">${v}</button>`).join('')}</div><input style="margin-top:6px" placeholder="Comments" data-lc="${i}" value="${esc(R.lash[i+'C'])}">`).join('')}
+// ---- damages
+function renderDmg(){$('#dmgYN').innerHTML=['Y','N'].map(v=>`<button class="${v=='N'?'n ':''}${R.dmgFound==v?'on':''}" onclick="R.dmgFound=R.dmgFound=='${v}'?'':'${v}';renderDmg();save()">${v=='Y'?'Yes':'No'}</button>`).join('');
+ $('#dmgList').innerHTML=R.damages.map((d,i)=>`<div class="truck" style="border-color:#c0392b"><label>Damage ${i+1} – item / crate</label><input data-dm="${i}:item" value="${esc(d.item)}"><label>Description</label><textarea data-dm="${i}:desc">${esc(d.desc)}</textarea><label>Action taken</label><input data-dm="${i}:action" value="${esc(d.action)}"><button class="del" style="margin-top:6px" onclick="R.damages.splice(${i},1);renderDmg();save()">Remove</button></div>`).join('');
+ $('#dmgPhotos').innerHTML=R.dmgPhotos.map((p,i)=>`<div class="ph"><img src="${p.data}"><button class="x del" onclick="R.dmgPhotos.splice(${i},1);renderDmg();save()">✕</button><input placeholder="Caption" data-pc="dmgPhotos:${i}" value="${esc(p.cap)}"></div>`).join('')}
+function addDmg(){R.damages.push({});R.dmgFound='Y';renderDmg();save()}
+// ---- customers & automatic REP NO
+const DEFCUST=[{name:'Bollore',prefix:'BOL',next:1,email:''},{name:'Steinweg',prefix:'STW',next:1,email:''},{name:'Vibramech',prefix:'VIB',next:1,email:''}];
+let CUSTS;try{CUSTS=JSON.parse(localStorage.getItem('ipsCusts'))}catch(e){}if(!Array.isArray(CUSTS))CUSTS=DEFCUST;
+function saveCusts(){localStorage.setItem('ipsCusts',JSON.stringify(CUSTS))}
+function renderCust(){const sel=$('#custSel');const c=R.f.customer||'';const names=CUSTS.map(x=>x.name);sel.innerHTML='<option value="">— select customer —</option>'+CUSTS.map(x=>`<option>${esc(x.name)}</option>`).join('')+(c&&!names.includes(c)?`<option>${esc(c)}</option>`:'');sel.value=c;
+ $('#custRows').innerHTML=CUSTS.map((x,i)=>`<div class="truck"><div class="row"><input value="${esc(x.name)}" placeholder="Name" oninput="CUSTS[${i}].name=this.value;saveCusts()" onchange="renderCust()"><input value="${esc(x.prefix)}" placeholder="Prefix" style="max-width:90px" oninput="CUSTS[${i}].prefix=this.value.toUpperCase();saveCusts()"></div><div class="row" style="margin-top:6px"><input value="${esc(x.next)}" inputmode="numeric" placeholder="Next no." style="max-width:110px" oninput="CUSTS[${i}].next=parseInt(this.value)||1;saveCusts()"><input value="${esc(x.email)}" type="email" placeholder="Email" oninput="CUSTS[${i}].email=this.value;saveCusts()"><button class="btn del" onclick="if(confirm('Remove customer?')){CUSTS.splice(${i},1);saveCusts();renderCust()}">✕</button></div></div>`).join('')}
+function toggleCustEd(){const e=$('#custEd');e.style.display=e.style.display=='none'?'block':'none';renderCust()}
+function addCust(){CUSTS.push({name:'',prefix:'',next:1,email:''});saveCusts();renderCust()}
+function curCust(){return CUSTS.find(x=>x.name==R.f.customer)}
+function pickCust(){R.f.customer=$('#custSel').value;const c=curCust();R.f.custEmail=c?c.email:'';if(!R.f.reportNo&&c&&c.prefix)assignRep(false);save()}
+function assignRep(force){const c=curCust();if(!c||!c.prefix){toast('Pick a customer with a REP NO prefix first (✎ List)');return}if(R.f.reportNo&&force&&!confirm('Replace '+R.f.reportNo+' with the next number?'))return;
+ R.f.reportNo=c.prefix+String(c.next).padStart(4,'0');c.next++;saveCusts();$('[data-f=reportNo]').value=R.f.reportNo;renderCust();save();toast('REP NO '+R.f.reportNo)}
+// ---- signature pads
+const PADS={};
+function makePad(id,key){const cv=$('#'+id);let ctx,drawing=false,dirty=false;const P={size(){const r=cv.getBoundingClientRect();if(!r.width)return;cv.width=r.width*2;cv.height=r.height*2;ctx=cv.getContext('2d');ctx.lineWidth=4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#0a1a6b';if(R&&R[key]){const im=new Image();im.onload=()=>ctx.drawImage(im,0,0,cv.width,cv.height);im.src=R[key]}},
+ clear(){ctx&&ctx.clearRect(0,0,cv.width,cv.height);R[key]='';dirty=false;save()}};
+ const pos=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*2,(e.clientY-r.top)*2]};
+ cv.addEventListener('pointerdown',e=>{if(!ctx)P.size();drawing=true;cv.setPointerCapture(e.pointerId);ctx.beginPath();ctx.moveTo(...pos(e))});
+ cv.addEventListener('pointermove',e=>{if(!drawing)return;ctx.lineTo(...pos(e));ctx.stroke();dirty=true});
+ ['pointerup','pointercancel'].forEach(ev=>cv.addEventListener(ev,()=>{if(drawing&&dirty){R[key]=cv.toDataURL('image/png');save()}drawing=false}));PADS[id]=P;return P}
+makePad('sig','sig');makePad('dsig','dsig');
+function clearSig(){PADS.sig.clear()}
+function loadSig(){PADS.sig.size();PADS.dsig.size()}
 // ---- list
 async function showList(){const all=(await dbAll()).sort((a,b)=>b.updated-a.updated);$('#items').innerHTML=all.map(r=>`<div class="item"><div><b>${esc(r.f.reportNo||'(no number)')}</b><br><span class="muted">${esc(r.f.goods||'')} · ${new Date(r.updated).toLocaleString()}</span></div><div class="row"><button class="btn" onclick="openR('${r.id}')">Open</button><button class="btn del" onclick="delR('${r.id}')">🗑</button></div></div>`).join('')||'<p class="muted">No saved reports yet.</p>';$('#form').style.display='none';$('#list').style.display='block';scrollTo(0,0)}
 function hideList(){$('#list').style.display='none';$('#form').style.display='block';loadSig()}
 async function openR(id){R=await dbGet(id);localStorage.setItem('ipsCur',id);$('#log').style.display='none';hideList();render()}
 async function delR(id){if(!confirm('Delete this report?'))return;await dbDel(id);if(R.id==id){R=blank();render()}showList()}
 async function newReport(){await dbPut(R);R=blank();render();save();scrollTo(0,0);toast('New report started')}
-async function dupReport(){await dbPut(R);R=JSON.parse(JSON.stringify(R));R.id='r'+Date.now();R.f.reportNo='';R.photos=[];R.extra=[];R.sig='';R.status='Draft';render();save();toast('Copied (without photos/signature)')}
+async function dupReport(){await dbPut(R);R=JSON.parse(JSON.stringify(R));R.id='r'+Date.now();R.f.reportNo='';R.photos=[];R.extra=[];R.dmgPhotos=[];R.damages=[];R.dmgFound='';R.lash={};R.sig='';R.dsig='';R.status='Draft';render();save();toast('Copied (without photos/signature)')}
 // ---- helpers
 function fmtDate(s){if(!s)return'';const[y,m,d]=s.split('-');return d+'/'+m+'/'+y}
 function fmtDT(s){if(!s)return'';const[a,b]=s.split('T');return fmtDate(a)+(b?' '+b:'')}
 function V(){const f=R.f;return{...f,date:fmtDate(f.date),arrival:fmtDT(f.arrival),repNo:f.repNo||f.reportNo||'',steps:R.steps.filter(s=>s.trim())}}
+function truckExtra(t){const out=[['Container no.',t.cont],['Seal no.',t.seal],['Loading start',fmtDT(t.start)],['Loading finish',fmtDT(t.finish)]];const a=truckArr(R,t);
+ if(a&&t.start)out.push(['Waiting time',hm(toMin(t.start)-toMin(a))]);if(t.start&&t.finish)out.push(['Loading duration',hm(toMin(t.finish)-toMin(t.start))]);return out.filter(x=>x[1])}
+function sections(){const S=[];const t=totals();
+ if(R.items.length||R.f.gross){S.push({title:'Weights & dimensions',head:['Description','Qty','L × W × H (cm)','Kg each','Total kg'],fr:[.38,.1,.22,.14,.16],
+  rows:[...R.items.map(it=>[it.desc||'',it.qty||'',[it.l,it.w,it.h].some(Boolean)?`${it.l||'-'} × ${it.w||'-'} × ${it.h||'-'}`:'',it.kg||'',(num(it.qty)*num(it.kg))?(num(it.qty)*num(it.kg)).toFixed(1):'']),...(R.items.length?[['TOTAL',String(t.q),t.m3?t.m3.toFixed(2)+' m³':'','',t.kg.toFixed(1)]]:[])],
+  notes:R.f.gross?['Gross weight: '+R.f.gross+' kg']:[]})}
+ const lashDone=LASH.some((l,i)=>R.lash[i]||R.lash[i+'C'])||R.f.straps||R.f.lashEq;
+ if(lashDone)S.push({title:'Lashing / securing checklist',head:['Item','Y/N','Comments'],fr:[.55,.12,.33],rows:LASH.map((l,i)=>[l,R.lash[i]||'',R.lash[i+'C']||'']),notes:[R.f.straps?'Straps / chains used: '+R.f.straps:'',R.f.lashEq?'Lashing equipment: '+R.f.lashEq:''].filter(Boolean)});
+ if(R.dmgFound||R.damages.length||R.dmgPhotos.length)S.push({title:'Damages',notes:['Damages found: '+(R.dmgFound=='Y'?'YES':R.dmgFound=='N'?'NO':'-')],head:R.damages.length?['No.','Item / crate','Description','Action taken']:null,fr:[.08,.24,.42,.26],rows:R.damages.map((d,i)=>[String(i+1),d.item||'',d.desc||'',d.action||'']),photos:R.dmgPhotos});
+ return S}
+function photoGroups(){const g=[];for(const st of STAGES){const ps=R.photos.filter(p=>(p.stage||'During')==st);if(ps.length)g.push([st,ps])}return g}
+function drvName(){return R.f.drvName||(R.trucks[0]&&R.trucks[0].driver)||''}
 function fname(ext){return 'Survey report '+((R.f.reportNo||'draft').replace(/[^\w\- ]+/g,'_'))+'.'+ext}
 function imgSize(src){return new Promise(r=>{const i=new Image();i.onload=()=>r([i.width,i.height]);i.src=src})}
 // ---- PDF (jsPDF vector layout matching template)
@@ -603,10 +671,10 @@ async function makePDF(){
  // page 2: trucks
  newPage();const TW=453,c1=L+TW/2;
  R.trucks.forEach((t,ti)=>{
-  if(y+260>BOT){foot();newPage()}
+  if(y+320>BOT){foot();newPage()}
   doc.setFontSize(9);doc.setLineWidth(.6);doc.setDrawColor(0);
   doc.setFillColor(79,129,189);doc.rect(L,y,TW,13,'FD');doc.setTextColor(255);doc.setFont('helvetica','bold');const ht='TRUCK DETAILS'+(R.trucks.length>1?' '+(ti+1):'');const hw=doc.getTextWidth(ht);doc.text(ht,L+TW/2-hw/2,y+9.5);doc.setDrawColor(255);doc.line(L+TW/2-hw/2,y+11,L+TW/2+hw/2,y+11);doc.setDrawColor(0);y+=13;
-  for(const[k,l]of TF){doc.setFont('helvetica','normal');const lines=doc.splitTextToSize(t[k]||'',TW/2-6);const h=Math.max(12.5,lines.length*10.5+3);doc.setFillColor(79,129,189);doc.rect(L,y,TW/2,h,'FD');doc.rect(c1,y,TW/2,h);doc.setTextColor(255);doc.text(l,L+3,y+9.5);doc.setTextColor(0);doc.text(lines,c1+3,y+9.5);y+=h}
+  for(const[k,l,val]of [...TF,...truckExtra(t).map(([l,v])=>[null,l,v])]){doc.setFont('helvetica','normal');const lines=doc.splitTextToSize((k?t[k]:val)||'',TW/2-6);const h=Math.max(12.5,lines.length*10.5+3);doc.setFillColor(79,129,189);doc.rect(L,y,TW/2,h,'FD');doc.rect(c1,y,TW/2,h);doc.setTextColor(255);doc.text(l,L+3,y+9.5);doc.setTextColor(0);doc.text(lines,c1+3,y+9.5);y+=h}
   y+=34;const cw=TW/3;
   doc.setFillColor(79,129,189);doc.rect(L,y,TW,15,'FD');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.text('Truck Condition',L+TW/2,y+10.5,{align:'center'});y+=15;
   doc.setFillColor(79,129,189);doc.setDrawColor(0);doc.rect(L,y,TW,15,'FD');doc.setTextColor(255);doc.setFont('helvetica','bold');doc.setDrawColor(255);ul('DESCRIPTION',L+3,y+10.5);const yw=doc.getTextWidth('Y/N');ul('Y/N',L+cw*1.5-yw/2,y+10.5);ul('COMMENTS',L+cw*2+3,y+10.5);doc.setDrawColor(0);y+=15;
@@ -617,22 +685,33 @@ async function makePDF(){
  y=Math.max(y+30,y);if(y>BOT-40){foot();newPage()}
  doc.setFont('helvetica','bold');ul('Loading procedure',L,y);y+=18;doc.setFont('helvetica','normal');
  for(const s of v.steps){const lines=doc.splitTextToSize(s,TW-40);if(y+lines.length*12>BOT){foot();newPage()}doc.text('\u2022',L+30,y);doc.text(lines,L+44,y);y+=lines.length*12+3}
- y+=40;if(y>BOT-40){foot();newPage()}
- doc.setFont('helvetica','bold');ul('Final Images.',L,y);y+=14;doc.setFont('helvetica','normal');
- // photos 2 per row
- const gw=(TW-12)/2,maxH=300;let col=0,rowH=0;
- for(const p of R.photos){let w=gw,h=gw*p.h/p.w;if(h>maxH){h=maxH;w=h*p.w/p.h}const ch=p.cap?doc.splitTextToSize(p.cap,gw):[];const need=h+(ch.length?ch.length*10+4:0)+8;
+ const ptable=(head,rows,fr)=>{const ws=fr.map(f=>f*TW);doc.setFontSize(8.5);const drawRow=(cells,hd)=>{doc.setFont('helvetica',hd?'bold':'normal');const ls=cells.map((c,i)=>doc.splitTextToSize(String(c||''),ws[i]-6));const h=Math.max(14,Math.max(...ls.map(l=>l.length))*10+4);
+   if(y+h>BOT){foot();newPage();if(!hd)drawRow(head,true)}let x=L;ls.forEach((l,i)=>{if(hd||i==0&&head[0]!='No.'){doc.setFillColor(79,129,189);doc.rect(x,y,ws[i],h,'FD');doc.setTextColor(255)}else{doc.rect(x,y,ws[i],h);doc.setTextColor(0)}doc.text(l,x+3,y+10);x+=ws[i]});doc.setTextColor(0);y+=h};
+  doc.setDrawColor(0);doc.setLineWidth(.6);drawRow(head,true);rows.forEach(r=>drawRow(r,false));doc.setFontSize(9.5);y+=6};
+ const pnote=t=>{doc.setFont('helvetica','normal');const ls=doc.splitTextToSize(t,TW);if(y+ls.length*12>BOT){foot();newPage()}doc.text(ls,L,y+9);y+=ls.length*12+2};
+ const phead=(t,sub)=>{if(y>BOT-70){foot();newPage()}doc.setFont('helvetica','bold');doc.setFontSize(sub?9:9.5);sub?doc.text(t,L,y):ul(t,L,y);doc.setFontSize(9.5);y+=sub?10:14};
+ const gw=(TW-12)/2;
+ const pimgs=(list,maxH=300)=>{let col=0,rowH=0;for(const p of list){let w=gw,h=gw*p.h/p.w;if(h>maxH){h=maxH;w=h*p.w/p.h}const ch=p.cap?doc.splitTextToSize(p.cap,gw):[];const need=h+(ch.length?ch.length*10+4:0)+8;
   if(col==0&&y+need>BOT){foot();newPage()}
   const x=L+col*(gw+12)+(gw-w)/2;doc.addImage(p.data,'JPEG',x,y,w,h,undefined,'FAST');if(ch.length){doc.setFontSize(8.5);doc.setFont('helvetica','italic');doc.text(ch,L+col*(gw+12)+gw/2,y+h+10,{align:'center'});doc.setFontSize(9.5);doc.setFont('helvetica','normal')}
-  rowH=Math.max(rowH,need);col++;if(col==2){col=0;y+=rowH;rowH=0}}
+  rowH=Math.max(rowH,need);col++;if(col==2){col=0;y+=rowH;rowH=0}}if(col)y+=rowH};
+ y+=24;
+ for(const S of sections()){phead(S.title);if(S.title=='Damages')S.notes.forEach(pnote);if(S.head&&S.rows.length)ptable(S.head,S.rows,S.fr);if(S.title!='Damages')S.notes.forEach(pnote);if(S.photos&&S.photos.length){y+=4;pimgs(S.photos,220)}y+=16}
+ y+=10;if(y>BOT-220){foot();newPage()}
+ doc.setFont('helvetica','bold');ul('Final Images.',L,y);y+=14;doc.setFont('helvetica','normal');
+ for(const[st,ps]of photoGroups()){phead(st,true);pimgs(ps);y+=6}
  foot();
  // remarks page
  newPage();doc.setFontSize(9.5);doc.setFont('helvetica','bold');ul('REMARKS',L,y);y+=22;doc.setFont('helvetica','normal');
  for(const r of[v.rem1,v.rem2]){if(!r)continue;const lines=doc.splitTextToSize(r,TW);doc.text(lines,L,y,{lineHeightFactor:1.9});y+=lines.length*9.5*1.9+14}
- y=Math.max(y+60,640);
+ const dn=drvName();if(dn||R.dsig){y+=10;doc.setFont('helvetica','bold');ul('Driver sign-off',L,y);y+=14;doc.setFont('helvetica','normal');
+  doc.text(doc.splitTextToSize(`I, ${dn||'the driver'}, confirm the cargo was loaded and secured in my presence and I accept the load as described above.`,TW),L,y);y+=26;
+  if(R.dsig){doc.addImage(R.dsig,'PNG',L,y,150,48);y+=54}doc.text((dn||'')+'   '+(v.date||''),L,y)}
+;y+=24;
+ y=Math.max(y+30,600);
  doc.text('Kind Regards',L,y);y+=10;
  if(R.sig){doc.addImage(R.sig,'PNG',L,y,150,48);y+=56}else y+=14;
- if(v.name){doc.text(v.name,L,y);y+=14}if(v.phone){doc.text(v.phone,L,y)}
+ if(v.name){doc.text(v.name,L,y);y+=14}if(v.phone){doc.text(v.phone,L,y);y+=14}
  foot();
  return doc.output('blob');
 }
@@ -660,6 +739,7 @@ async function makeDOCX(){
  const tdT=tbls[1],tcT=tbls[2];
  function fillTruck(t1,t2,t,i){const r1=kids(t1,'tr');if(R.trucks.length>1){const hp=kids(kids(r1[0],'tc')[0],'p')[0];run(hp,' '+(i+1),{keep:1})}
   TF.forEach(([k],j)=>{if(t[k])run(kids(kids(r1[j+1],'tc')[1],'p')[0],t[k],{color:'000000'})});
+  const toa=r1[r1.length-1];let lastR=toa;for(const[l,val]of truckExtra(t)){const nr=toa.cloneNode(true);const cs=kids(nr,'tc');const lt=W(cs[0],'t');lt.forEach((x,j)=>x.textContent=j?'':l);const vp=kids(cs[1],'p')[0];kids(vp,'r').forEach(r=>vp.removeChild(r));run(vp,val,{color:'000000'});t1.insertBefore(nr,lastR.nextSibling);lastR=nr}
   const r2=kids(t2,'tr');TC.forEach(([k],j)=>{const c=kids(r2[j+2],'tc');if(t[k])run(kids(c[1],'p')[0],t[k],{color:'000000'});if(t[k+'C'])run(kids(c[2],'p')[0],t[k+'C'],{color:'000000'})})}
  const proto1=tdT.cloneNode(true),proto2=tcT.cloneNode(true);
  let after=tcT;
@@ -679,12 +759,26 @@ async function makeDOCX(){
  function addImg(dataUrl,ext,wEmu,hEmu){const id='rId'+(rid++);const fn='media/app_'+id+'.'+ext;zip.file('word/'+fn,dataUrl.split(',')[1],{base64:true});const r=rels.createElementNS(RNS,'Relationship');r.setAttribute('Id',id);r.setAttribute('Type','http://schemas.openxmlformats.org/officeDocument/2006/relationships/image');r.setAttribute('Target',fn);rels.documentElement.appendChild(r);
   const n=pid++;const frag=`<w:r xmlns:w="${WNS}"><w:drawing><wp:inline xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${wEmu}" cy="${hEmu}"/><wp:docPr id="${n}" name="Picture ${n}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="img${n}.${ext}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" r:embed="${id}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${wEmu}" cy="${hEmu}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
   return xml.importNode(new DOMParser().parseFromString(frag,'application/xml').documentElement,true)}
- const EMU=914400;let ip=P('Final Images.');
  const pp=(align)=>{const p=mk('p');const pr=mk('pPr');if(align){const j=mk('jc');j.setAttributeNS(WNS,'w:val',align);pr.appendChild(j)}p.appendChild(pr);return p};
- for(let i=0;i<R.photos.length;i+=2){const pair=R.photos.slice(i,i+2);const p=pp('center');
-  pair.forEach((ph,j)=>{let w=2.9,h=w*ph.h/ph.w;if(h>3.9){h=3.9;w=h*ph.w/ph.h}if(j){const sp=mk('r');const t=mk('t');t.setAttribute('xml:space','preserve');t.textContent='   ';sp.appendChild(t);p.appendChild(sp)}p.appendChild(addImg(ph.data,'jpg',Math.round(w*EMU),Math.round(h*EMU)))});
-  body.insertBefore(p,ip.nextSibling);ip=p;
-  const caps=pair.map(p=>p.cap).filter(Boolean);if(caps.length){const cp=pp('center');run(cp,pair.map(p=>p.cap||'').join('          |          ').replace(/^ +\| +| +\| +$/g,''),{i:1});body.insertBefore(cp,ip.nextSibling);ip=cp}}
+ const EMU=914400;const FI=P('Final Images.');const LPH=P('Loading procedure');
+ const esx=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const frag=x=>xml.importNode(new DOMParser().parseFromString(`<w:root xmlns:w="${WNS}">${x}</w:root>`,'application/xml').documentElement.firstChild,true);
+ const rpr=(b,col,sz=18)=>`<w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/>${b?'<w:b/>':''}<w:color w:val="${col}"/><w:sz w:val="${sz}"/></w:rPr>`;
+ const tblX=(head,rows,fr)=>{const TWW=9070,ws=fr.map(f=>Math.round(f*TWW));const bd=['top','left','bottom','right','insideH','insideV'].map(b=>`<w:${b} w:val="single" w:sz="4" w:space="0" w:color="000000"/>`).join('');
+  const cell=(t,i,hd)=>{const blue=hd||(i==0&&head[0]!='No.');return `<w:tc><w:tcPr><w:tcW w:w="${ws[i]}" w:type="dxa"/>${blue?'<w:shd w:val="clear" w:color="auto" w:fill="4F81BD"/>':''}</w:tcPr>`+String(t??'').split('\n').map(l=>`<w:p><w:pPr><w:spacing w:before="20" w:after="20"/></w:pPr><w:r>${rpr(hd,blue?'FFFFFF':'000000')}<w:t xml:space="preserve">${esx(l)}</w:t></w:r></w:p>`).join('')+'</w:tc>'};
+  return `<w:tbl><w:tblPr><w:tblW w:w="${TWW}" w:type="dxa"/><w:tblBorders>${bd}</w:tblBorders><w:tblLayout w:type="fixed"/></w:tblPr><w:tblGrid>${ws.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`+[head,...rows].map((r,ri)=>`<w:tr>${ri==0?'<w:trPr><w:tblHeader/></w:trPr>':''}${r.map((c,i)=>cell(c,i,ri==0)).join('')}</w:tr>`).join('')+'</w:tbl>'};
+ const heading=t=>{const h=LPH.cloneNode(true);const ts=W(h,'t');ts.forEach((x,j)=>x.textContent=j?'':t);return h};
+ const para=(t,o={})=>{const p=pp(o.align);run(p,t,o);return p};
+ const imgPara=(pair,maxW=2.9,maxH=3.9)=>{const p=pp('center');pair.forEach((ph,j)=>{let w=maxW,h=w*ph.h/ph.w;if(h>maxH){h=maxH;w=h*ph.w/ph.h}if(j){const sp=mk('r');const t=mk('t');t.setAttribute('xml:space','preserve');t.textContent='   ';sp.appendChild(t);p.appendChild(sp)}p.appendChild(addImg(ph.data,'jpg',Math.round(w*EMU),Math.round(h*EMU)))});return p};
+ const capPara=pair=>{const caps=pair.map(p=>p.cap).filter(Boolean);if(!caps.length)return null;const cp=pp('center');run(cp,pair.map(p=>p.cap||'').join('          |          ').replace(/^ +\| +| +\| +$/g,''),{i:1});return cp};
+ const ins=n=>body.insertBefore(n,FI);
+ for(const S of sections()){ins(pp());ins(heading(S.title));if(S.title=='Damages')S.notes.forEach(t=>ins(para(t)));if(S.head&&S.rows.length)ins(frag(tblX(S.head,S.rows,S.fr)));if(S.title!='Damages')S.notes.forEach(t=>ins(para(t)));
+  if(S.photos)for(let i=0;i<S.photos.length;i+=2){const pr=S.photos.slice(i,i+2);ins(imgPara(pr,2.6,3.2));const c=capPara(pr);if(c)ins(c)}}
+ if(sections().length)ins(pp());
+ let ip=FI;const putAfter=n=>{body.insertBefore(n,ip.nextSibling);ip=n};
+ for(const[st,ps]of photoGroups()){putAfter(para(st,{keep:1}));
+ for(let i=0;i<ps.length;i+=2){const pair=ps.slice(i,i+2);putAfter(imgPara(pair));const c=capPara(pair);if(c)putAfter(c)}}
+
  // remarks
  const rems=kids(body,'p').filter(p=>txt(p).startsWith('International Packaging')||txt(p).startsWith('As per the survey'));
  [[rems[0],v.rem1],[rems[1],v.rem2]].forEach(([p,t])=>{if(!p)return;const rs=kids(p,'r');rs.slice(1).forEach(r=>p.removeChild(r));const tt=W(rs[0],'t');tt.slice(1).forEach(x=>x.parentNode.removeChild(x));tt[0].textContent=t||''});
@@ -693,11 +787,26 @@ async function makeDOCX(){
  let kp=next(KR);
  if(R.sig){kp.appendChild(addImg(R.sig,'png',Math.round(1.9*EMU),Math.round(0.6*EMU)));kp=next(kp)}
  if(v.name){run(kp,v.name);kp=next(kp)} if(v.phone&&kp)run(kp,v.phone);
+ const dn=drvName();if(dn||R.dsig){const add=n=>body.insertBefore(n,KR);for(let i=0;i<9;i++){const pv=KR.previousSibling;if(pv&&pv.localName=='p'&&!txt(pv).trim()&&!W(pv,'br').length&&!W(pv,'drawing').length)body.removeChild(pv)}add(pp());add(heading('Driver sign-off'));
+  add(para(`I, ${dn||'the driver'}, confirm the cargo was loaded and secured in my presence and I accept the load as described above.`));
+  if(R.dsig){const p=pp();p.appendChild(addImg(R.dsig,'png',Math.round(1.9*EMU),Math.round(0.6*EMU)));add(p)}add(para((dn||'')+'   '+(v.date||'')))}
  zip.file('word/document.xml',new XMLSerializer().serializeToString(xml));
  zip.file('word/_rels/document.xml.rels',new XMLSerializer().serializeToString(rels));
  for(const f of['word/footer1.xml','word/footer2.xml','word/footer3.xml']){const fx=await zip.file(f).async('string');zip.file(f,fx.replace('REP NO: </w:t>','REP NO: '+esc(v.repNo)+'</w:t>'))}
  return zip.generateAsync({type:'blob',compression:'DEFLATE',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
 }
+async function emailReport(){try{toast('Preparing email…');const v=V();const pdf=await makePDF(),docx=await makeDOCX();
+ const files=[new File([pdf],fname('pdf'),{type:'application/pdf'}),new File([docx],fname('docx'),{type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'})];
+ const ce=(curCust()||{}).email||R.f.custEmail||'';const m=$('#mailTo').value;const KAY='kayla@ips-packaging.co.za';
+ if((m=='c'||m=='b')&&!ce)toast('No email saved for this customer – add it in ✎ List');
+ const to=[m!='c'?KAY:'',m!='k'?ce:''].filter(Boolean).join(',')||KAY;
+ const subject=`Survey report ${v.repNo}${R.f.customer?' – '+R.f.customer:''}`;
+ const body=`Good day,\n\nPlease find attached the survey report ${v.repNo}${R.f.goods?' ('+R.f.goods+')':''}${v.date?' inspected on '+v.date:''}${R.f.location?' at '+R.f.location:''}.\n\nKind Regards\n${v.name||''}\n${v.phone||''}`;
+ window.__mail={to,subject,body};
+ if(navigator.canShare&&navigator.canShare({files})){try{await navigator.share({files,title:subject,text:body});return}catch(e){if(e.name=='AbortError')return}}
+ for(const f of files){const a=document.createElement('a');a.href=URL.createObjectURL(f);a.download=f.name;document.body.appendChild(a);a.click();setTimeout(()=>a.remove(),4000)}
+ setTimeout(()=>{location.href=`mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body+'\n\n(PDF and Word report were downloaded to this phone – please attach them.)')}`},600)
+ }catch(e){console.error(e);alert('Could not prepare email: '+e.message)}}
 async function out(kind,how){
  try{toast('Generating '+kind.toUpperCase()+'…');const blob=kind=='pdf'?await makePDF():await makeDOCX();const name=fname(kind);
   const file=new File([blob],name,{type:kind=='pdf'?'application/pdf':'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
@@ -722,9 +831,9 @@ async function zipExtra(){if(!R.extra.length)return toast('No extra photos');con
 function toMin(d){return d?new Date(d).getTime()/60000:null}
 function hm(m){if(m==null||isNaN(m))return'';const s=m<0?'-':'';m=Math.abs(Math.round(m));return s+Math.floor(m/60)+'h'+String(m%60).padStart(2,'0')}
 function truckArr(r,t){const d=r.f.date;if(t.toa&&/^\d{1,2}:\d{2}$/.test(t.toa.trim())&&d)return d+'T'+t.toa.trim().padStart(5,'0');return r.f.arrival||''}
-function logRows(all){const rows=[];for(const r of all){const f=r.f||{};if(!f.reportNo&&!f.customer&&!f.goods&&!f.repNo)continue;const dmg=(r.extra||[]).filter(p=>/damage/i.test(p.cat)).length;
+function logRows(all){const rows=[];for(const r of all){const f=r.f||{};if(!f.reportNo&&!f.customer&&!f.goods&&!f.repNo)continue;const dmg=(r.extra||[]).filter(p=>/damage/i.test(p.cat)).length+(r.damages||[]).length+(r.dmgPhotos||[]).length;
  (r.trucks&&r.trucks.length?r.trucks:[{}]).forEach((t,i)=>{const arr=truckArr(r,t),st=t.start||'',fi=t.finish||'';
-  rows.push({Date:f.date||'',REP_NO:f.repNo||f.reportNo||'',Customer:f.customer||'',Inspector:f.inspector||'',Location:f.location||'',Kind_of_cargo:f.kind||'',Truck_no:(r.trucks.length>1?(i+1)+'/'+r.trucks.length:'1'),Truck_reg:t.reg||'',Container_seal:t.cont||'',Qty_weight:f.weight||f.qtyLoad||'',Arrival:arr.replace('T',' '),Loading_start:st.replace('T',' '),Loading_finish:fi.replace('T',' '),Duration:st&&fi?hm(toMin(fi)-toMin(st)):'',Waiting:arr&&st?hm(toMin(st)-toMin(arr)):'',Damages:dmg,Status:r.status||'Draft',_id:r.id})})}
+  rows.push({Date:f.date||'',REP_NO:f.repNo||f.reportNo||'',Customer:f.customer||'',Inspector:f.inspector||'',Location:f.location||'',Kind_of_cargo:f.kind||'',Truck_no:(r.trucks.length>1?(i+1)+'/'+r.trucks.length:'1'),Truck_reg:t.reg||'',Container_seal:[t.cont,t.seal].filter(Boolean).join(' / '),Qty_weight:(()=>{let kg=0,q=0;(r.items||[]).forEach(it=>{const n=parseFloat(it.qty)||0;q+=n;kg+=n*(parseFloat(String(it.kg||'').replace(',','.'))||0)});return kg?`${q} pcs / ${kg.toFixed(0)} kg`:(f.gross?f.gross+' kg':(f.weight||f.qtyLoad||''))})(),Arrival:arr.replace('T',' '),Loading_start:st.replace('T',' '),Loading_finish:fi.replace('T',' '),Duration:st&&fi?hm(toMin(fi)-toMin(st)):'',Waiting:arr&&st?hm(toMin(st)-toMin(arr)):'',Damages:dmg,Status:r.status||'Draft',_id:r.id})})}
  return rows.sort((a,b)=>(b.Date).localeCompare(a.Date))}
 let LOGROWS=[];
 async function showLog(){await dbPut(R);const all=await dbAll();const custs=[...new Set(all.map(r=>(r.f.customer||'').trim()).filter(Boolean))].sort();const sel=$('#lgCust'),cur=sel.value;sel.innerHTML='<option value="">All customers</option>'+custs.map(c=>`<option>${esc(c)}</option>`).join('');sel.value=cur;
