@@ -867,4 +867,6 @@ async function exportLog(kind,how){const aoa=logAOA();let blob,name='Load log '+
 // ---- init
 (async()=>{const id=localStorage.getItem('ipsCur');R=(id&&await dbGet(id).catch(()=>null))||blank();render()})();
 addEventListener('resize',()=>{if($('#form').style.display!='none')loadSig()});
-</script></body></html>
+</script>
+<script>if("serviceWorker"in navigator&&location.protocol!=="file:")navigator.serviceWorker.register("sw.js").catch(function(){});</script>
+</body></html>
